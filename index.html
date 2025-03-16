@@ -1,12 +1,130 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Puzzle Editor</title>
-    <script defer src="bundle.js"></script>
+    <title>Bildzusammenfügen</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .canvas-container {
+            position: relative;
+            display: inline-block;
+            margin-top: 20px;
+            border: 1px solid #000;
+        }
+        .drop-area {
+            width: 128px;
+            height: 128px;
+            position: absolute;
+            border: 1px dashed #ccc;
+            background-color: #f9f9f9;
+        }
+        .drop-area img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <div id="root"></div>
+    <h1>Bildzusammenfügen</h1>
+
+    <div class="controls">
+        <label for="rows">Zeilen:</label>
+        <input type="number" id="rows" value="4" min="1">
+        <label for="cols">Spalten:</label>
+        <input type="number" id="cols" value="7" min="1">
+        <button onclick="generateGrid()">Raster erstellen</button>
+    </div>
+
+    <div id="canvasContainer" class="canvas-container"></div>
+    <button onclick="generateImage()">Bild erzeugen (ohne Raster)</button>
+
+    <script>
+        let gridData = [];
+        const tileWidth = 128;
+        const tileHeight = 128;
+
+        function generateGrid() {
+            const rows = parseInt(document.getElementById("rows").value);
+            const cols = parseInt(document.getElementById("cols").value);
+            const container = document.getElementById("canvasContainer");
+
+            container.innerHTML = '';  // Clear previous grid
+            gridData = [];
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = c * tileWidth;
+                    const y = r * tileHeight;
+
+                    const dropArea = document.createElement("div");
+                    dropArea.classList.add("drop-area");
+                    dropArea.style.left = `${x}px`;
+                    dropArea.style.top = `${y}px`;
+
+                    dropArea.ondragover = (e) => {
+                        e.preventDefault();
+                    };
+
+                    dropArea.ondrop = (e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files[0];
+                        const reader = new FileReader();
+
+                        reader.onload = (e) => {
+                            const img = new Image();
+                            img.src = e.target.result;
+                            img.onload = () => {
+                                const canvas = document.createElement("canvas");
+                                const ctx = canvas.getContext("2d");
+                                canvas.width = tileWidth;
+                                canvas.height = tileHeight;
+                                ctx.drawImage(img, 0, 0, tileWidth, tileHeight);
+                                dropArea.innerHTML = '';  // Clear existing content
+                                dropArea.appendChild(img);
+                                gridData[r * cols + c] = canvas;
+                            };
+                        };
+
+                        reader.readAsDataURL(file);
+                    };
+
+                    container.appendChild(dropArea);
+                }
+            }
+        }
+
+        function generateImage() {
+            const rows = parseInt(document.getElementById("rows").value);
+            const cols = parseInt(document.getElementById("cols").value);
+            const canvas = document.createElement("canvas");
+            canvas.width = cols * tileWidth;
+            canvas.height = rows * tileHeight;
+
+            const ctx = canvas.getContext("2d");
+            gridData.forEach((tile, index) => {
+                const x = (index % cols) * tileWidth;
+                const y = Math.floor(index / cols) * tileHeight;
+                if (tile) {
+                    ctx.drawImage(tile, x, y);
+                }
+            });
+
+            // Convert canvas to PNG and trigger download
+            canvas.toBlob(function(blob) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'zusammengesetztes_bild.png';
+                link.click();
+            });
+        }
+    </script>
 </body>
 </html>
